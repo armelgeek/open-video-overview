@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build output
+dist/
+.mastra/
+.claude/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Credentials and tokens
+token.json
+credentials.json
+*.key
+*.pem
+
+# Generated output
+output/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+.cache/

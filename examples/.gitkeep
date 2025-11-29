@@ -1,0 +1,7 @@
+# Examples Directory
+
+Place your example screenshots and videos here:
+- `workflow.png` - Screenshot of the Mastra workflow playground
+- Example videos from your generations
+
+Note: If adding large video files, consider using Git LFS or hosting them externally.

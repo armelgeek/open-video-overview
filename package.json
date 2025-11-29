@@ -1,0 +1,57 @@
+{
+  "name": "open-video-overview",
+  "version": "1.0.0",
+  "description": "Open-source alternative to NotebookLM Video Overview - creates narrated videos from text with AI-generated images and audio",
+  "author": "Batur Yilmaz Arslan",
+  "license": "MIT",
+  "type": "module",
+  "keywords": [
+    "notebooklm",
+    "video-overview",
+    "ai",
+    "video-generation",
+    "educational-videos",
+    "explainer-videos",
+    "mastra",
+    "gemini",
+    "elevenlabs",
+    "text-to-speech",
+    "image-generation",
+    "agent",
+    "workflow",
+    "automation"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baturyilmaz/open-video-overview.git"
+  },
+  "bugs": {
+    "url": "https://github.com/baturyilmaz/open-video-overview/issues"
+  },
+  "scripts": {
+    "dev": "mastra dev",
+    "build": "mastra build",
+    "lint": "eslint src/",
+    "format": "prettier --write src/",
+    "typecheck": "tsc --noEmit"
+  },
+  "packageManager": "pnpm@10.11.0",
+  "dependencies": {
+    "@elevenlabs/elevenlabs-js": "^2.25.0",
+    "@google/genai": "^1.30.0",
+    "@mastra/core": "^0.24.5",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.1",
+    "@typescript-eslint/eslint-plugin": "^8.48.0",
+    "@typescript-eslint/parser": "^8.48.0",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.5.0",
+    "mastra": "^0.18.5",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3"
+  }
+}
