@@ -75,30 +75,48 @@ ELEVENLABS_API_KEY=your_elevenlabs_api_key
 
 ## Development Setup
 
-This project uses a **webhook-driven architecture** where services are independent and communicate via HTTP events.
+This project uses a **single-process webhook vocabulary** for event-driven architecture. All services are registered as handlers within the main Mastra process.
 
-### Terminal 1: Start the main workflow
+### Start the server
 ```bash
+npm install
 npm run dev
 ```
 
-### Terminal 2+: Start the services
-```bash
-# Run all services at once
-npm run services:all
+Visit `http://localhost:3000` to start using the API.
 
-# Or run individual services in separate terminals
-npm run services:image      # Image generation (Port 3001)
-npm run services:audio      # Audio generation (Port 3002)
-npm run services:video      # Video processing (Port 3003)
-npm run services:storyboard # Storyboard generation (Port 3004)
-npm run services:script     # Script enhancement (Port 3005)
-npm run services:summarization # Content summarization (Port 3006)
+**Architecture:** Events like `image.generate` and `audio.generate` are routed to their handlers in-process with no HTTP overhead. This keeps the system simple for MVP while maintaining the vocabulary to extract services later if needed.
+
+See **[Webhook Architecture Guide](docs/WEBHOOK_ARCHITECTURE.md)** for architecture details.
+
+## Next.js SDK
+
+Use the Video Overview SDK to integrate from your Next.js app:
+
+```bash
+npm install @videooverview/sdk
 ```
 
-**Architecture:** Each service listens on a webhook endpoint, returns `202 Accepted` immediately, processes asynchronously, and POSTs results back to the workflow's callback handler. This enables services to scale independently while the workflow orchestrates the sequence.
+**Quick example:**
+```typescript
+"use client";
+import { useGenerateImage } from "@videooverview/sdk";
 
-See **[Webhook Architecture Guide](docs/WEBHOOK_ARCHITECTURE.md)** for detailed setup, monitoring, and best practices.
+export function ImageGenerator() {
+  const { generate, loading, data } = useGenerateImage();
+  
+  return (
+    <div>
+      <button onClick={() => generate({ prompt: "A sunset" })}>
+        {loading ? "Generating..." : "Generate Image"}
+      </button>
+      {data?.imageData && <img src={`data:image/png;base64,${data.imageData}`} />}
+    </div>
+  );
+}
+```
+
+See **[SDK Setup Guide](sdk/next/SETUP.md)** for full integration instructions and API reference.
 
 ## Usage
 
