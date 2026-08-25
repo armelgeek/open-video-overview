@@ -264,10 +264,22 @@ const generateClipsStep = createStep({
       // Generate and save narration audio with enhanced script
       console.log(`🔊 Generating audio narration...`);
       const startAudio = Date.now();
-      const audioBuffer = await generateNarrationAudio(
-        enhancedNarration,
-        ctx.language,
-        ctx.narrativeVoiceId
+      const audioResponse = await webhookClient.emit({
+        eventId: crypto.randomUUID(),
+        type: "audio.generate",
+        callbackUrl: `${process.env.WORKFLOW_CALLBACK_URL || "http://localhost:3000"}/webhooks/callback`,
+        data: {
+          narration: enhancedNarration,
+          language: ctx.language,
+          voiceId: ctx.narrativeVoiceId,
+        },
+        timestamp: new Date().toISOString(),
+        timeout: 300000,
+      });
+
+      const audioBuffer = Buffer.from(
+        audioResponse.data?.audioData as string,
+        "base64"
       );
       const audioPath = await saveClipAudio(
         clip.index,
