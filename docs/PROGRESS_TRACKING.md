@@ -235,72 +235,134 @@ Returns all currently processing events.
 4. **Handle Errors** — Always emit `failed` status on error
 5. **Use Consistent Event IDs** — Keep the same `eventId` throughout the request lifecycle
 
-## Example: Video Generation with Progress
+## Example: Video Generation with Image-by-Image Progress
+
+Track progress for **each clip individually** (image + audio + combine):
 
 ```typescript
+import { calculateMultiStageProgress, getClipDetailedMessage } from "@mastra/webhooks/progress-utils";
+
 registry.registerHandler("video.generate", async (data) => {
-  const eventId = data.eventId; // Passed through
+  const eventId = data.eventId;
+  const clips = data.clips; // Array of clips to generate
 
-  // Step 1: Storyboard
+  progressTracker.emit({
+    eventId,
+    type: "video.generate",
+    status: "started",
+    progress: 0,
+    message: `Starting to generate ${clips.length} clips...`,
+    timestamp: new Date().toISOString(),
+  });
+
+  for (let i = 0; i < clips.length; i++) {
+    const clipIndex = i + 1;
+    const clip = clips[i];
+
+    // ---- Image Generation ----
+    progressTracker.emit({
+      eventId,
+      type: "video.generate",
+      status: "processing",
+      progress: calculateMultiStageProgress(i, clips.length, "image"),
+      message: getClipDetailedMessage(clipIndex, clips.length, clip.title, "image"),
+      data: {
+        stage: "image",
+        clip: clipIndex,
+        totalClips: clips.length,
+        clipTitle: clip.title,
+      },
+      timestamp: new Date().toISOString(),
+    });
+
+    const imageData = await generateImage(clip.narration);
+
+    // ---- Audio Generation ----
+    progressTracker.emit({
+      eventId,
+      type: "video.generate",
+      status: "processing",
+      progress: calculateMultiStageProgress(i, clips.length, "audio"),
+      message: getClipDetailedMessage(clipIndex, clips.length, clip.title, "audio"),
+      data: {
+        stage: "audio",
+        clip: clipIndex,
+        totalClips: clips.length,
+        clipTitle: clip.title,
+      },
+      timestamp: new Date().toISOString(),
+    });
+
+    const audioData = await generateAudio(clip.narration);
+
+    // ---- Combine Image + Audio ----
+    progressTracker.emit({
+      eventId,
+      type: "video.generate",
+      status: "processing",
+      progress: calculateMultiStageProgress(i, clips.length, "combine"),
+      message: getClipDetailedMessage(clipIndex, clips.length, clip.title, "combine"),
+      data: {
+        stage: "combine",
+        clip: clipIndex,
+        totalClips: clips.length,
+        clipTitle: clip.title,
+      },
+      timestamp: new Date().toISOString(),
+    });
+
+    const videoPath = await combineImageAndAudio(imageData, audioData);
+
+    // ---- Clip Complete ----
+    progressTracker.emit({
+      eventId,
+      type: "video.generate",
+      status: "processing",
+      progress: Math.round((clipIndex / clips.length) * 100),
+      message: `Completed ${clipIndex}/${clips.length} clips`,
+      data: {
+        clipsCompleted: clipIndex,
+        totalClips: clips.length,
+        currentClipTitle: clip.title,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  // ---- Concatenate all clips ----
   progressTracker.emit({
     eventId,
     type: "video.generate",
     status: "processing",
-    progress: 10,
-    message: "Creating storyboard...",
+    progress: 95,
+    message: "Concatenating all clips into final video...",
+    data: { stage: "concatenate", clipsCount: clips.length },
     timestamp: new Date().toISOString(),
   });
-  const storyboard = await generateStoryboard(data.content);
 
-  // Step 2: Images
-  progressTracker.emit({
-    eventId,
-    type: "video.generate",
-    status: "processing",
-    progress: 40,
-    message: `Generating ${storyboard.clips.length} images...`,
-    timestamp: new Date().toISOString(),
-  });
-  const images = await generateImages(storyboard);
+  const finalVideoPath = await concatenateAllClips(clips);
 
-  // Step 3: Audio
-  progressTracker.emit({
-    eventId,
-    type: "video.generate",
-    status: "processing",
-    progress: 70,
-    message: "Generating audio narration...",
-    timestamp: new Date().toISOString(),
-  });
-  const audio = await generateAudio(storyboard.narration);
-
-  // Step 4: Video
-  progressTracker.emit({
-    eventId,
-    type: "video.generate",
-    status: "processing",
-    progress: 90,
-    message: "Compositing video...",
-    timestamp: new Date().toISOString(),
-  });
-  const videoPath = await createVideo(images, audio);
-
-  // Complete
+  // ---- Complete ----
   progressTracker.emit({
     eventId,
     type: "video.generate",
     status: "completed",
     progress: 100,
     message: "Video generation complete!",
-    data: { videoPath, storyboard, clips: storyboard.clips.length },
+    data: {
+      finalVideoPath,
+      clipsGenerated: clips.length,
+    },
     timestamp: new Date().toISOString(),
   });
 
-  return { videoPath };
+  return { finalVideoPath };
 });
 ```
 
 ## Client Integration
+
+### Basic Progress (Overall)
 
 ```typescript
 "use client";
@@ -334,6 +396,48 @@ export function VideoGenerator() {
   );
 }
 ```
+
+### Clip-by-Clip Progress (Image by Image)
+
+```typescript
+"use client";
+
+import { useState } from "react";
+import { ClipProgressExample } from "@videooverview/sdk/examples/ClipProgressExample";
+
+export function VideoGeneratorWithClips() {
+  const [eventId, setEventId] = useState<string | null>(null);
+
+  const handleGenerate = async () => {
+    const newEventId = crypto.randomUUID();
+    setEventId(newEventId);
+
+    try {
+      const client = createClient("http://localhost:3000");
+      await client.generateVideo({
+        content: "Your video content...",
+        eventId: newEventId,
+      });
+    } catch (error) {
+      console.error("Generation failed:", error);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl">
+      <button onClick={handleGenerate}>Generate Video</button>
+      {eventId && <ClipProgressExample eventId={eventId} />}
+    </div>
+  );
+}
+```
+
+The `ClipProgressExample` component shows:
+- ✅ Overall progress bar (0-100%)
+- ✅ Clip-by-clip breakdown
+- ✅ Sub-stages per clip (image → audio → combine)
+- ✅ Real-time activity log
+- ✅ Completion status
 
 ## Polling Alternative
 
