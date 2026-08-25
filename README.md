@@ -73,6 +73,33 @@ MAMMOUTH_API_KEY=your_mammouth_api_key
 ELEVENLABS_API_KEY=your_elevenlabs_api_key
 ```
 
+## Development Setup
+
+This project uses a **webhook-driven architecture** where services are independent and communicate via HTTP events.
+
+### Terminal 1: Start the main workflow
+```bash
+npm run dev
+```
+
+### Terminal 2+: Start the services
+```bash
+# Run all services at once
+npm run services:all
+
+# Or run individual services in separate terminals
+npm run services:image      # Image generation (Port 3001)
+npm run services:audio      # Audio generation (Port 3002)
+npm run services:video      # Video processing (Port 3003)
+npm run services:storyboard # Storyboard generation (Port 3004)
+npm run services:script     # Script enhancement (Port 3005)
+npm run services:summarization # Content summarization (Port 3006)
+```
+
+**Architecture:** Each service listens on a webhook endpoint, returns `202 Accepted` immediately, processes asynchronously, and POSTs results back to the workflow's callback handler. This enables services to scale independently while the workflow orchestrates the sequence.
+
+See **[Webhook Architecture Guide](docs/WEBHOOK_ARCHITECTURE.md)** for detailed setup, monitoring, and best practices.
+
 ## Usage
 
 ### Development Server
