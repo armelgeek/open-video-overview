@@ -184,7 +184,8 @@ const generateClipsStep = createStep({
 
       // Initialize webhook client
       const webhookRegistry = new WebhookRegistry();
-      webhookRegistry.loadRegistry();
+      const { initializeWebhookHandlers } = await import("../webhooks/initializer");
+      initializeWebhookHandlers(webhookRegistry);
       const webhookClient = new WebhookClient(webhookRegistry);
 
       // Generate image with retry loop
@@ -204,7 +205,7 @@ const generateClipsStep = createStep({
           const response = await webhookClient.emit({
             eventId: crypto.randomUUID(),
             type: "image.generate",
-            callbackUrl: `${process.env.WORKFLOW_CALLBACK_URL || "http://localhost:3000"}/webhooks/callback`,
+            callbackUrl: "", // Not used in single-process mode
             data: {
               prompt: currentImagePrompt,
               aspectRatio: ctx.aspectRatio,
@@ -267,7 +268,7 @@ const generateClipsStep = createStep({
       const audioResponse = await webhookClient.emit({
         eventId: crypto.randomUUID(),
         type: "audio.generate",
-        callbackUrl: `${process.env.WORKFLOW_CALLBACK_URL || "http://localhost:3000"}/webhooks/callback`,
+        callbackUrl: "", // Not used in single-process mode
         data: {
           narration: enhancedNarration,
           language: ctx.language,
