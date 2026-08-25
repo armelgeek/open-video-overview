@@ -1,0 +1,40 @@
+{
+  "services": {
+    "image.generate": {
+      "url": "http://localhost:3001",
+      "webhookPath": "/webhooks/image",
+      "timeout": 300000,
+      "maxRetries": 3
+    },
+    "audio.generate": {
+      "url": "http://localhost:3002",
+      "webhookPath": "/webhooks/audio",
+      "timeout": 300000,
+      "maxRetries": 3
+    },
+    "video.combine": {
+      "url": "http://localhost:3003",
+      "webhookPath": "/webhooks/combine",
+      "timeout": 600000,
+      "maxRetries": 2
+    },
+    "storyboard.generate": {
+      "url": "http://localhost:3004",
+      "webhookPath": "/webhooks/storyboard",
+      "timeout": 300000,
+      "maxRetries": 3
+    },
+    "script.enhance": {
+      "url": "http://localhost:3005",
+      "webhookPath": "/webhooks/enhance-script",
+      "timeout": 300000,
+      "maxRetries": 3
+    },
+    "summarization.compact": {
+      "url": "http://localhost:3006",
+      "webhookPath": "/webhooks/summarize",
+      "timeout": 300000,
+      "maxRetries": 3
+    }
+  }
+}
