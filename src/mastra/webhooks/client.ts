@@ -1,6 +1,6 @@
 import type { WebhookEvent, WebhookResponse, EventRecord } from "./types";
 import { EventStore } from "./event-store";
-import { WebhookRegistry } from "./registry";
+import type { WebhookRegistry } from "./registry";
 
 export class WebhookClient {
   private eventStore = new EventStore();
@@ -43,8 +43,8 @@ export class WebhookClient {
       });
     });
 
-    // Emit to service
-    this.emitToService(event).catch((error) => {
+    // Process event (sync or async depending on handler)
+    this.processEvent(event).catch((error) => {
       const pending = this.pendingCallbacks.get(event.eventId);
       if (pending) {
         clearTimeout(pending.timeout);
@@ -57,53 +57,28 @@ export class WebhookClient {
     return response;
   }
 
-  private async emitToService(event: WebhookEvent): Promise<void> {
-    const serviceConfig = this.registry.getServiceConfig(event.type);
-    if (!serviceConfig) {
-      throw new Error(`No service configured for event type: ${event.type}`);
+  private async processEvent(event: WebhookEvent): Promise<void> {
+    const handler = this.registry.getHandler(event.type);
+    if (!handler) {
+      throw new Error(`No handler registered for event type: ${event.type}`);
     }
 
-    const url = `${serviceConfig.url}${serviceConfig.webhookPath}`;
-    const maxRetries = serviceConfig.maxRetries || 3;
-    let attempt = 0;
-    let lastError: Error | null = null;
-
-    while (attempt < maxRetries) {
-      try {
-        const response = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(event),
-        });
-
-        if (!response.ok) {
-          throw new Error(
-            `Service returned ${response.status}: ${response.statusText}`
-          );
-        }
-
-        console.log(
-          `[WebhookClient] Event ${event.eventId} accepted by ${event.type}`
-        );
-        return;
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        attempt++;
-
-        if (attempt < maxRetries) {
-          const backoffMs = (event.retryConfig?.backoffMs || 1000) * attempt;
-          console.log(
-            `[WebhookClient] Retry ${attempt}/${maxRetries} after ${backoffMs}ms`
-          );
-          await new Promise((r) => setTimeout(r, backoffMs));
-        }
-      }
-    }
-
-    if (lastError) {
-      throw new Error(
-        `Failed to emit event after ${maxRetries} attempts: ${lastError.message}`
+    try {
+      const result = await handler(event.data);
+      console.log(
+        `[WebhookClient] Event ${event.eventId} (${event.type}) processed`
       );
+
+      // Resolve callback with result
+      this.resolveCallback(event.eventId, {
+        eventId: event.eventId,
+        status: "completed",
+        data: result as Record<string, unknown>,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      throw new Error(`Handler failed for ${event.type}: ${message}`);
     }
   }
 
