@@ -1,52 +1,45 @@
 # Webhook-Driven Architecture Guide
 
-This project uses a webhook-based, event-driven architecture for service communication. Services are independent, scalable, and communicate via HTTP webhooks.
+This project uses a **webhook vocabulary** for event-driven architecture, but implements it as a single-process system for simplicity. All services are registered as handlers within the main Mastra process and communicate via internal function calls.
 
 ## Quick Start
 
-### Terminal 1: Start the main workflow
 ```bash
 npm install
 npm run dev
 ```
 
-### Terminal 2+: Start services
-```bash
-# Run all services at once
-npm run services:all
-
-# Or run individual services
-npm run services:image      # Port 3001
-npm run services:audio      # Port 3002
-npm run services:video      # Port 3003
-npm run services:storyboard # Port 3004
-npm run services:script     # Port 3005
-npm run services:summarization # Port 3006
-```
+That's it! All services are initialized and ready to process events.
 
 ## Architecture Overview
 
 ```
-┌──────────────────────────────────────┐
-│  Mastra Workflow (Orchestrator)      │
-│  Emits events → Waits for webhooks   │
-└───────────┬──────────────────────────┘
-            │
-    ┌───────┴───────┐
-    │ HTTP Events   │
-    │               │
-┌───▼────┐   ┌──────▼──────┐   ┌──────▼──────┐
-│ Image  │   │ Audio       │   │ Video       │
-│ Service│   │ Service     │   │ Service     │
-│ :3001  │   │ :3002       │   │ :3003       │
-└────────┘   └─────────────┘   └─────────────┘
+┌─────────────────────────────────────────┐
+│    Mastra Workflow (Single Process)     │
+│                                         │
+│  ┌─────────────────────────────────┐   │
+│  │  WebhookClient                  │   │
+│  │  Emits: { type, data }          │   │
+│  └────────┬────────────────────────┘   │
+│           │                             │
+│  ┌────────▼──────────────────────────┐ │
+│  │  WebhookRegistry                 │ │
+│  │  Resolves type → handler         │ │
+│  └────────┬──────────────────────────┘ │
+│           │                             │
+│  ┌────────▼──────────────────────────┐ │
+│  │  Handlers (In-Process)           │ │
+│  │  • image.generate                │ │
+│  │  • audio.generate                │ │
+│  │  • video.combine                 │ │
+│  │  • storyboard.generate           │ │
+│  │  • script.enhance                │ │
+│  │  • summarization.compact         │ │
+│  └──────────────────────────────────┘ │
+└─────────────────────────────────────────┘
 ```
 
-Each service:
-1. Listens on a webhook endpoint
-2. Returns `202 Accepted` immediately
-3. Processes the request asynchronously
-4. POSTs the result back to the workflow's callback URL
+All event handlers run in-process with no HTTP overhead.
 
 ## How It Works
 
@@ -57,90 +50,73 @@ Each service:
 const response = await webhookClient.emit({
   eventId: crypto.randomUUID(),
   type: "image.generate",
-  callbackUrl: "http://localhost:3000/webhooks/callback",
+  callbackUrl: "", // Not used in single-process mode
   data: { prompt: "...", aspectRatio: "..." },
   timestamp: new Date().toISOString(),
   timeout: 300000, // 5 min
 });
 ```
 
-**2. Service receives webhook:**
+**2. WebhookClient looks up handler:**
+```typescript
+const handler = registry.getHandler("image.generate");
 ```
-POST http://localhost:3001/webhooks/image
-Content-Type: application/json
 
-{
-  "eventId": "uuid",
-  "type": "image.generate",
-  "callbackUrl": "...",
-  "data": { ... },
-  "timestamp": "2026-08-25T..."
+**3. Handler executes in-process:**
+```typescript
+const result = await handler(event.data);
+// Returns: { imageData: "..." }
+```
+
+**4. Result returned immediately:**
+```typescript
+response.data // { imageData: "..." }
+```
+
+## Handler Registry
+
+Handlers are registered in `src/mastra/webhooks/initializer.ts`:
+
+```typescript
+export function initializeWebhookHandlers(registry: WebhookRegistry): void {
+  registry.registerHandler("image.generate", async (data) => {
+    const imageData = await generateImage(data.prompt, data.aspectRatio);
+    return { imageData };
+  });
+  
+  registry.registerHandler("audio.generate", async (data) => {
+    const audioData = await generateNarrationAudio(data.narration);
+    return { audioData };
+  });
+  
+  // ... more handlers
 }
 ```
 
-**3. Service returns 202 immediately:**
-```
-HTTP/1.1 202 Accepted
-Content-Type: application/json
+This design keeps the **event vocabulary** (type names) consistent while avoiding the complexity of multiple processes.
 
-{ "eventId": "uuid", "status": "accepted" }
-```
+## Adding a New Handler
 
-**4. Service processes asynchronously, POSTs callback:**
-```
-POST http://localhost:3000/webhooks/callback
-Content-Type: application/json
-
-{
-  "eventId": "uuid",
-  "status": "completed",
-  "data": { "imageData": "base64..." },
-  "timestamp": "2026-08-25T..."
-}
-```
-
-**5. Workflow's callback handler resolves the promise.**
-
-## Service Registry
-
-Services are configured in `src/mastra/webhooks/service-registry.json`:
-
-```json
-{
-  "services": {
-    "image.generate": {
-      "url": "http://localhost:3001",
-      "webhookPath": "/webhooks/image",
-      "timeout": 300000,
-      "maxRetries": 3
-    },
-    // ... other services
-  }
-}
-```
-
-In production, update URLs to your deployed service endpoints (e.g., `https://image-service.myapp.com`).
-
-## Adding a New Service
-
-1. **Create webhook endpoint:**
+1. **Create handler function:**
    ```typescript
-   // src/mastra/services/myservice/server.ts
-   export function createMyServiceEndpoint(app: any) {
-     app.post("/webhooks/myservice", async (req, res) => {
-       res.status(202).json({ status: "accepted" });
-       // Process async, POST callback
-     });
+   // src/mastra/services/myservice/index.ts
+   export async function myCustomFunction(input: any): Promise<any> {
+     // Do work
+     return { result: "..." };
    }
    ```
 
-2. **Register in service registry:**
-   ```json
-   "myservice.do": {
-     "url": "http://localhost:9000",
-     "webhookPath": "/webhooks/myservice",
-     "timeout": 300000,
-     "maxRetries": 3
+2. **Register handler in initializer:**
+   ```typescript
+   // src/mastra/webhooks/initializer.ts
+   import { myCustomFunction } from "../services/myservice";
+   
+   export function initializeWebhookHandlers(registry: WebhookRegistry): void {
+     // ... existing handlers
+     
+     registry.registerHandler("myservice.do", async (data) => {
+       return await myCustomFunction(data.input);
+     });
    }
    ```
 
@@ -149,8 +125,8 @@ In production, update URLs to your deployed service endpoints (e.g., `https://im
    const response = await webhookClient.emit({
      eventId: crypto.randomUUID(),
      type: "myservice.do",
-     callbackUrl: "...",
-     data: { ... },
+     callbackUrl: "", // Not used
+     data: { input: "..." },
      timestamp: new Date().toISOString(),
    });
    ```
@@ -194,23 +170,15 @@ Each service logs to console. Look for `[ServiceName]` prefix:
 
 ## Development vs Production
 
-### Development
-Services run locally as separate Node processes. Configuration uses `localhost:PORT` URLs.
+### Development & Production
+All handlers run in-process. No external services or configuration needed. Just run `npm run dev`.
 
-### Production
-Services are deployed to production URLs (Docker, K8s, etc.). Update `service-registry.json` to point to production endpoints:
-
-```json
-{
-  "services": {
-    "image.generate": {
-      "url": "https://image-service.myapp.com",
-      "webhookPath": "/webhooks/image",
-      // ...
-    }
-  }
-}
-```
+### Future: Distributed Architecture
+If you need to scale specific handlers independently in the future:
+1. Extract handler into separate service
+2. Change handler from function call to HTTP webhook
+3. Update WebhookClient to use fetch instead of calling handler directly
+4. This architecture supports both patterns without code changes to the workflow
 
 ## Testing
 
@@ -244,20 +212,20 @@ Tests cover:
 
 ## Troubleshooting
 
-### Service not responding
-- Check if service is running: `curl http://localhost:3001/webhooks/image -X POST`
-- Check service logs for errors
-- Verify service registry has correct URL
+### Handler not found error
+- Check that handler is registered in `src/mastra/webhooks/initializer.ts`
+- Verify the event `type` name matches the registered handler name
+- Check console logs for "All handlers registered" message
 
-### Workflow callback timeout
-- Check if workflow's callback URL is correct (use `WORKFLOW_CALLBACK_URL` env var)
-- Check if service is actually POSTing the callback
-- Increase timeout if service takes longer
+### Handler timeout
+- Increase `timeout` when emitting the event (default 5 min)
+- Review handler function for long-running operations
+- Check console logs for handler execution time
 
 ### Events in dead letter queue
 - Check the last error: `dlq[0].lastError`
-- Review service logs at that timestamp
-- Consider retrying manually: re-emit the event with new `eventId`
+- Review console logs at that timestamp
+- Verify handler function doesn't throw errors
 
 ## Related Documentation
 
