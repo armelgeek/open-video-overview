@@ -35,14 +35,7 @@
     "format": "prettier --write src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "test:ui": "vitest --ui",
-    "services:image": "node --loader ts-node/esm src/mastra/services/image/server.ts",
-    "services:audio": "node --loader ts-node/esm src/mastra/services/audio/server.ts",
-    "services:video": "node --loader ts-node/esm src/mastra/services/video/server.ts",
-    "services:storyboard": "node --loader ts-node/esm src/mastra/services/storyboard/server.ts",
-    "services:script": "node --loader ts-node/esm src/mastra/services/script/server.ts",
-    "services:summarization": "node --loader ts-node/esm src/mastra/services/summarization/server.ts",
-    "services:all": "concurrently 'npm run services:image' 'npm run services:audio' 'npm run services:video' 'npm run services:storyboard' 'npm run services:script' 'npm run services:summarization'"
+    "test:ui": "vitest --ui"
   },
   "packageManager": "pnpm@10.11.0",
   "dependencies": {
@@ -51,7 +44,6 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0",
     "@eslint/js": "^9.39.1",
     "@types/node": "^24.10.1",
     "@typescript-eslint/eslint-plugin": "^8.48.0",
