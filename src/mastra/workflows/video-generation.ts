@@ -1,5 +1,6 @@
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
+import { WebhookClient, WebhookRegistry } from "../webhooks";
 import {
   styleSchema,
   formatSchema,
@@ -181,6 +182,11 @@ const generateClipsStep = createStep({
       );
       console.log(`   Narration: "${clip.narration.slice(0, 80)}..."`);
 
+      // Initialize webhook client
+      const webhookRegistry = new WebhookRegistry();
+      webhookRegistry.loadRegistry();
+      const webhookClient = new WebhookClient(webhookRegistry);
+
       // Generate image with retry loop
       let imageData = "";
       let retries = 0;
@@ -194,7 +200,21 @@ const generateClipsStep = createStep({
         const startImage = Date.now();
 
         try {
-          imageData = await generateImage(ctx, currentImagePrompt);
+          // Emit image generation event
+          const response = await webhookClient.emit({
+            eventId: crypto.randomUUID(),
+            type: "image.generate",
+            callbackUrl: `${process.env.WORKFLOW_CALLBACK_URL || "http://localhost:3000"}/webhooks/callback`,
+            data: {
+              prompt: currentImagePrompt,
+              aspectRatio: ctx.aspectRatio,
+              style: ctx.style,
+            },
+            timestamp: new Date().toISOString(),
+            timeout: 300000,
+          });
+
+          imageData = response.data?.imageData as string;
           console.log(
             `   ✅ Image generated (${((Date.now() - startImage) / 1000).toFixed(1)}s)`
           );
