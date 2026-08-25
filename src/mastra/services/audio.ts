@@ -6,8 +6,9 @@ const client = new ElevenLabsClient({
   apiKey: process.env.ELEVENLABS_API_KEY,
 });
 
-// Default voice for narration
-const DEFAULT_VOICE_ID = "NYC9WEgkq1u4jiqBseQ9";
+// Default voice for narration. ponytail: "George" is a premade voice usable on the
+// free plan; library voices return 402. Override with ELEVENLABS_VOICE_ID.
+const DEFAULT_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "JBFqnCBsd6RMkjVDRZzb";
 
 export async function generateNarrationAudio(
   narration: string,

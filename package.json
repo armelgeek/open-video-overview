@@ -38,7 +38,6 @@
   "packageManager": "pnpm@10.11.0",
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.25.0",
-    "@google/genai": "^1.30.0",
     "@mastra/core": "^0.24.5",
     "zod": "^3.25.76"
   },

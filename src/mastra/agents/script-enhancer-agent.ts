@@ -1,4 +1,5 @@
 import { Agent } from "@mastra/core/agent";
+import { mammouth, TEXT_MODEL } from "../mammouth";
 
 export const scriptEnhancerAgent = new Agent({
   name: "Script Enhancer Agent",
@@ -46,5 +47,5 @@ Add subtle emotional direction tags to make the narration more engaging and natu
 ## OUTPUT FORMAT
 Return ONLY the enhanced narration text with tags in square brackets.
 No explanations or commentary.`,
-  model: "google/gemini-3-pro-preview",
+  model: mammouth(TEXT_MODEL),
 });

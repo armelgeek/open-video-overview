@@ -1,5 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
-import process from "node:process";
+import { mammouthImage } from "../mammouth";
 import type { GenerationContext } from "../types";
 import {
   getStyleGuide,
@@ -8,10 +7,6 @@ import {
   getStyleAvoidList,
   getClipTypeAvoidList,
 } from "./style";
-
-const ai = new GoogleGenAI({
-  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-});
 
 export async function generateImage(
   ctx: GenerationContext,
@@ -30,9 +25,7 @@ export async function generateImage(
     ? `\n## Custom Instructions (MUST FOLLOW)\n${ctx.customInstructions}\n`
     : "";
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3-pro-image-preview",
-    contents: `Create an illustration for "${ctx.storyboardTitle}".
+  return mammouthImage(`Create an illustration for "${ctx.storyboardTitle}".
 
 ## Technical Requirements
 - Aspect ratio: ${ctx.aspectRatio}
@@ -51,19 +44,5 @@ ${imagePrompt}
 ${styleAdditions}
 
 ## MUST AVOID - Do not include any of these
-${allAvoid.map((item) => `- ${item}`).join("\n")}`,
-    config: {
-      responseModalities: ["image", "text"],
-    },
-  });
-
-  const imagePart = response.candidates?.[0]?.content?.parts?.find(
-    (p) => p.inlineData
-  );
-
-  if (!imagePart?.inlineData?.data) {
-    throw new Error("No image generated");
-  }
-
-  return imagePart.inlineData.data;
+${allAvoid.map((item) => `- ${item}`).join("\n")}`);
 }

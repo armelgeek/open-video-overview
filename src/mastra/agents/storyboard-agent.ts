@@ -1,4 +1,5 @@
 import { Agent } from "@mastra/core/agent";
+import { mammouth, TEXT_MODEL } from "../mammouth";
 
 export const storyboardAgent = new Agent({
   name: "Storyboard Agent",
@@ -52,5 +53,5 @@ Create a video that flows as ONE cohesive story, not disconnected clips:
 - Avoid text in images (renders poorly in AI generation)
 - For recurring characters, copy exact descriptions from previous clips
 - Never include meta-labels like "intro", "chapter 1", "section header"`,
-  model: "google/gemini-3-pro-preview",
+  model: mammouth(TEXT_MODEL),
 });

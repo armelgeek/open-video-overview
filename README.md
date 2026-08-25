@@ -46,7 +46,7 @@ An open-source alternative to [NotebookLM's Video Overview](https://notebooklm.g
   # Ubuntu/Debian
   sudo apt install ffmpeg
   ```
-- **Google Generative AI API Key** ([Get one here](https://ai.google.dev/))
+- **Mammouth AI API Key** ([Get one here](https://mammouth.ai))
 - **ElevenLabs API Key** ([Get one here](https://elevenlabs.io/))
 
 ## Installation
@@ -69,7 +69,7 @@ cp .env.example .env
 Create a `.env` file with your API keys:
 
 ```env
-GOOGLE_GENERATIVE_AI_API_KEY=your_google_api_key
+MAMMOUTH_API_KEY=your_mammouth_api_key
 ELEVENLABS_API_KEY=your_elevenlabs_api_key
 ```
 
